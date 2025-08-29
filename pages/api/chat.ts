@@ -1,48 +1,137 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import type { Document } from 'langchain/document';
-import { CohereEmbeddings } from "@langchain/cohere";
+// import type { NextApiRequest, NextApiResponse } from 'next';
+// import type { Document } from 'langchain/document';
+// import { CohereEmbeddings } from "@langchain/cohere";
+// import { PineconeStore } from "@langchain/pinecone";
+// import { makeChain } from '@/utils/makechain';
+// import { pinecone } from '@/utils/pinecone-client';
+// import { PINECONE_INDEX_NAME,  } from '@/config/pinecone';
+
+// export default async function handler(
+//   req: NextApiRequest,
+//   res: NextApiResponse,
+// ) {
+//   const { question, history } = req.body;
+
+//   console.log('question', question);
+//   console.log('history', history);
+
+//   //only accept post requests
+//   if (req.method !== 'POST') {
+//     res.status(405).json({ error: 'Method not allowed' });
+//     return;
+//   }
+
+//   if (!question) {
+//     return res.status(400).json({ message: 'No question in the request' });
+//   }
+//   // Cohere recommends replacing newlines with spaces for best results
+//   const sanitizedQuestion = question.trim().replaceAll('\n', ' ');
+
+//   try {
+//     const index = pinecone.Index(PINECONE_INDEX_NAME);
+
+//     /* create vectorstore*/
+//     const vectorStore = await PineconeStore.fromExistingIndex(
+//       new CohereEmbeddings({
+//             model: "embed-english-v3.0",
+//        }),
+//       {
+//         pineconeIndex: index,
+//         textKey: 'text',
+//         namespace: PINECONE_NAME_SPACE, //namespace comes from your config folder
+//       },
+//     );
+
+//     // Use a callback to get intermediate sources from the middle of the chain
+//     let resolveWithDocuments: (value: Document[]) => void;
+//     const documentPromise = new Promise<Document[]>((resolve) => {
+//       resolveWithDocuments = resolve;
+//     });
+//     const retriever = vectorStore.asRetriever({
+//       callbacks: [
+//         {
+//           handleRetrieverEnd(documents) {
+//             resolveWithDocuments(documents);
+//           },
+//         },
+//       ],
+//     });
+
+//     //create chain
+//     const chain = makeChain(retriever);
+
+//     const pastMessages = history
+//       .map((message: [string, string]) => {
+//         return [`Human: ${message[0]}`, `Assistant: ${message[1]}`].join('\n');
+//       })
+//       .join('\n');
+//     console.log(pastMessages);
+
+//     //Ask a question using chat history
+//     const response = await chain.invoke({
+//       question: sanitizedQuestion,
+//       chat_history: pastMessages,
+//     });
+
+//     const sourceDocuments = await documentPromise;
+
+//     console.log('response', response);
+//     res.status(200).json({ text: response, sourceDocuments });
+//   } catch (error: any) {
+//     console.log('error', error);
+//     res.status(500).json({ error: error.message || 'Something went wrong' });
+//   }
+// }
+
+///--------------------------------------------------------------------------------
+
+import type { NextApiRequest, NextApiResponse } from "next";
+import type { Document } from "langchain/document";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { PineconeStore } from "@langchain/pinecone";
-import { makeChain } from '@/utils/makechain';
-import { pinecone } from '@/utils/pinecone-client';
-import { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE } from '@/config/pinecone';
+import { makeChain } from "@/utils/makechain";
+import { pinecone } from "@/utils/pinecone-client";
+import { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE } from "@/config/pinecone";
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse,
+  res: NextApiResponse
 ) {
   const { question, history } = req.body;
 
-  console.log('question', question);
-  console.log('history', history);
+  console.log("question", question);
+  console.log("history", history);
 
-  //only accept post requests
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
+  // only accept POST requests
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
   if (!question) {
-    return res.status(400).json({ message: 'No question in the request' });
+    return res.status(400).json({ message: "No question in the request" });
   }
-  // Cohere recommends replacing newlines with spaces for best results
-  const sanitizedQuestion = question.trim().replaceAll('\n', ' ');
+
+  // Gemini also prefers sanitized text (remove newlines etc.)
+  const sanitizedQuestion = question.trim().replaceAll("\n", " ");
 
   try {
     const index = pinecone.Index(PINECONE_INDEX_NAME);
 
-    /* create vectorstore*/
+    /* create vectorstore with Gemini embeddings */
     const vectorStore = await PineconeStore.fromExistingIndex(
-      new CohereEmbeddings({
-            model: "embed-english-v3.0",
-       }),
+      new GoogleGenerativeAIEmbeddings({
+        apiKey: process.env.GEMINI_API_KEY!, // make sure this is set in .env
+        model: "text-embedding-004", // 768 dimensions
+      }),
       {
         pineconeIndex: index,
-        textKey: 'text',
-        namespace: PINECONE_NAME_SPACE, //namespace comes from your config folder
-      },
+        textKey: "text",
+        namespace: PINECONE_NAME_SPACE, // from config
+      }
     );
 
-    // Use a callback to get intermediate sources from the middle of the chain
+    // capture retrieved documents
     let resolveWithDocuments: (value: Document[]) => void;
     const documentPromise = new Promise<Document[]>((resolve) => {
       resolveWithDocuments = resolve;
@@ -57,17 +146,16 @@ export default async function handler(
       ],
     });
 
-    //create chain
+    // create chain with retriever
     const chain = makeChain(retriever);
 
     const pastMessages = history
       .map((message: [string, string]) => {
-        return [`Human: ${message[0]}`, `Assistant: ${message[1]}`].join('\n');
+        return [`Human: ${message[0]}`, `Assistant: ${message[1]}`].join("\n");
       })
-      .join('\n');
-    console.log(pastMessages);
+      .join("\n");
 
-    //Ask a question using chat history
+    // ask Gemini with history
     const response = await chain.invoke({
       question: sanitizedQuestion,
       chat_history: pastMessages,
@@ -75,10 +163,10 @@ export default async function handler(
 
     const sourceDocuments = await documentPromise;
 
-    console.log('response', response);
+    console.log("response", response);
     res.status(200).json({ text: response, sourceDocuments });
   } catch (error: any) {
-    console.log('error', error);
-    res.status(500).json({ error: error.message || 'Something went wrong' });
+    console.log("error", error);
+    res.status(500).json({ error: error.message || "Something went wrong" });
   }
 }

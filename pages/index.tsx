@@ -1,20 +1,20 @@
-import { useRef, useState, useEffect } from 'react';
-import Layout from '@/components/layout';
-import styles from '@/styles/Home.module.css';
-import { Message } from '@/types/chat';
-import Image from 'next/image';
-import ReactMarkdown from 'react-markdown';
-import LoadingDots from '@/components/ui/LoadingDots';
-import { Document } from 'langchain/document';
+import { useRef, useState, useEffect } from "react";
+import Layout from "@/components/layout";
+import styles from "@/styles/Home.module.css";
+import { Message } from "@/types/chat";
+import Image from "next/image";
+import ReactMarkdown from "react-markdown";
+import LoadingDots from "@/components/ui/LoadingDots";
+import { Document } from "langchain/document";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
+} from "@/components/ui/accordion";
 
 export default function Home() {
-  const [query, setQuery] = useState<string>('');
+  const [query, setQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [messageState, setMessageState] = useState<{
@@ -25,8 +25,8 @@ export default function Home() {
   }>({
     messages: [
       {
-        message: 'Hey, what would you like to learn today from your repository?',
-        type: 'apiMessage',
+        message: "Hi! Upload a PDF or ask me questions about the documents.",
+        type: "apiMessage",
       },
     ],
     history: [],
@@ -48,7 +48,7 @@ export default function Home() {
     setError(null);
 
     if (!query) {
-      alert('Please enter a question');
+      alert("Please enter a question");
       return;
     }
 
@@ -59,20 +59,20 @@ export default function Home() {
       messages: [
         ...state.messages,
         {
-          type: 'userMessage',
+          type: "userMessage",
           message: question,
         },
       ],
     }));
 
     setLoading(true);
-    setQuery('');
+    setQuery("");
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
+      const response = await fetch("/api/chat", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           question,
@@ -80,7 +80,7 @@ export default function Home() {
         }),
       });
       const data = await response.json();
-      console.log('data', data);
+      console.log("data", data);
 
       if (data.error) {
         setError(data.error);
@@ -90,7 +90,7 @@ export default function Home() {
           messages: [
             ...state.messages,
             {
-              type: 'apiMessage',
+              type: "apiMessage",
               message: data.text,
               sourceDocs: data.sourceDocuments,
             },
@@ -98,7 +98,7 @@ export default function Home() {
           history: [...state.history, [question, data.text]],
         }));
       }
-      console.log('messageState', messageState);
+      console.log("messageState", messageState);
 
       setLoading(false);
 
@@ -106,16 +106,16 @@ export default function Home() {
       messageListRef.current?.scrollTo(0, messageListRef.current.scrollHeight);
     } catch (error) {
       setLoading(false);
-      setError('An error occurred while fetching the data. Please try again.');
-      console.log('error', error);
+      setError("An error occurred while fetching the data. Please try again.");
+      console.log("error", error);
     }
   }
 
   //prevent empty submissions
   const handleEnter = (e: any) => {
-    if (e.key === 'Enter' && query) {
+    if (e.key === "Enter" && query) {
       handleSubmit(e);
-    } else if (e.key == 'Enter') {
+    } else if (e.key == "Enter") {
       e.preventDefault();
     }
   };
@@ -133,7 +133,7 @@ export default function Home() {
                 {messages.map((message, index) => {
                   let icon;
                   let className;
-                  if (message.type === 'apiMessage') {
+                  if (message.type === "apiMessage") {
                     icon = (
                       <Image
                         key={index}
@@ -169,9 +169,7 @@ export default function Home() {
                       <div key={`chatMessage-${index}`} className={className}>
                         {icon}
                         <div className={styles.markdownanswer}>
-                          <ReactMarkdown>
-                            {message.message}
-                          </ReactMarkdown>
+                          <ReactMarkdown>{message.message}</ReactMarkdown>
                         </div>
                       </div>
                       {message.sourceDocs && (
@@ -223,8 +221,8 @@ export default function Home() {
                     name="userInput"
                     placeholder={
                       loading
-                        ? 'Waiting for response...'
-                        : 'What are the courses offered at TheSkillPedia.com?'
+                        ? "Waiting for response..."
+                        : "What are the courses offered at TheSkillPedia.com?"
                     }
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -261,9 +259,7 @@ export default function Home() {
           </main>
         </div>
         <footer className="m-auto p-4">
-          <a href="https://twitter.com/TheSkillPedia">
-            Powered by LangChainAI. Learn Generative AI TheSkillPedia (Twitter: @TheSkillPedia).
-          </a>
+          <a href="#">Powered by LangChainAI.().</a>
         </footer>
       </Layout>
     </>
